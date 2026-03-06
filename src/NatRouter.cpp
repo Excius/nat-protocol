@@ -11,6 +11,12 @@ void NatRouter::handleOutbound(Packet &packet) {
 
 	if (entry == nullptr) {
 		entry = table.createMapping(packet.getSourceIp(), packet.getSourcePort());
+		if (entry == nullptr) {
+			std::cout << "[DROP: TABLE_FULL] ";
+			packet.print();
+			std::cout << std::endl;
+			return;
+		}
 
 		std::cout << "[MAP] ";
 		entry->print();
@@ -31,7 +37,7 @@ void NatRouter::handleInbound(Packet &packet) {
 
 	NatEntry *entry = table.findByPublicPort(packet.getDestinationPort());
 	if (entry == nullptr) {
-		std::cout << "[DROP] ";
+		std::cout << "[DROP: NO_MAPPING] ";
 		packet.print();
 		std::cout << std::endl;
 		return;
