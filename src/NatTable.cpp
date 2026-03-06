@@ -6,10 +6,11 @@
 constexpr uint16_t PORT_START = 40001;
 constexpr uint16_t PORT_END = 65535;
 
-NatTable::NatTable(const std::string &publicIp) : publicIp(publicIp), nextAvailablePort(PORT_START) {}
+NatTable::NatTable(const std::string &publicIp, const std::chrono::seconds timeout) :
+		publicIp(publicIp), nextAvailablePort(PORT_START), timeoutDuration{timeout} {}
 
-NatEntry *NatTable::findByPrivate(const std::string &privateIp, uint16_t privatePort) {
-	PrivateKey key{privateIp, privatePort};
+NatEntry *NatTable::findByPrivate(const std::string &privateIp, const uint16_t privatePort) {
+	const PrivateKey key{privateIp, privatePort};
 
 	auto it = outboundTraffic.find(key);
 	if (it == outboundTraffic.end()) {
@@ -19,7 +20,7 @@ NatEntry *NatTable::findByPrivate(const std::string &privateIp, uint16_t private
 	return &(it->second);
 }
 
-NatEntry *NatTable::findByPublicPort(uint16_t publicPort) {
+NatEntry *NatTable::findByPublicPort(const uint16_t publicPort) {
 
 	auto itInbound = inboundTraffic.find(publicPort);
 	if (itInbound == inboundTraffic.end())
@@ -79,7 +80,7 @@ NatEntry *NatTable::createMapping(const std::string &privateIp, uint16_t private
 }
 
 void NatTable::removeExpired() {
-	constexpr std::chrono::seconds TIMEOUT(60);
+	const std::chrono::seconds TIMEOUT{timeoutDuration};
 	const auto now = std::chrono::steady_clock::now();
 
 	for (auto it = outboundTraffic.begin(); it != outboundTraffic.end();) {

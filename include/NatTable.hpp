@@ -21,11 +21,13 @@ class NatTable {
 private:
 	std::string publicIp;
 	uint16_t nextAvailablePort;
+	std::chrono::seconds timeoutDuration;
+
 	std::map<PrivateKey, NatEntry> outboundTraffic;
 	std::map<uint16_t, PrivateKey> inboundTraffic;
 
 public:
-	explicit NatTable(const std::string &publicIp);
+	explicit NatTable(const std::string &publicIp, std::chrono::seconds timeout = std::chrono::seconds(60));
 
 	NatEntry *findByPrivate(const std::string &privateIp, uint16_t privatePort);
 	NatEntry *findByPublicPort(uint16_t publicPort);

@@ -2,7 +2,7 @@
 #include "../include/NatTable.hpp"
 int main() {
 
-	NatTable table("203.0.113.5");
+	NatTable table("203.0.113.5", std::chrono::seconds(60));
 	NatRouter router(table);
 
 	Packet p1("192.168.1.10", 5000, "8.8.8.8", 53, Protocol::UDP);
