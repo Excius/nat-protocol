@@ -14,7 +14,7 @@ PHASE 1 – CORE HARDENING
     - Reject new mappings when table is full
     - Log: [DROP: TABLE FULL]
 
-- [ ] Implement proper port exhaustion handling
+- [x] Implement proper port exhaustion handling
     - Handle nextAvailablePort > 65535
     - Wrap around to starting port
     - Ensure port is not already in use

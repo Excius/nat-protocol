@@ -41,26 +41,39 @@ NatEntry *NatTable::createMapping(const std::string &privateIp, uint16_t private
 		return natEntry;
 	}
 
-	uint16_t allocatedPort = nextAvailablePort;
-
-	if (allocatedPort > PORT_END) {
-		// port pool exhausted
-		return nullptr;
-	}
-	if (outboundTraffic.size() >= PORT_END - PORT_START + 1) {
+	if (outboundTraffic.size() >= (PORT_END - PORT_START + 1)) {
 		// Table size overflow
 		return nullptr;
 	}
 
-	NatEntry entry(publicIp, allocatedPort, privateIp, privatePort);
-	auto result = outboundTraffic.emplace(key, entry);
+	if (nextAvailablePort > PORT_END) {
+		// port pool exhausted
+		nextAvailablePort = PORT_START;
+	}
+
+	uint16_t allocatedPort = nextAvailablePort;
+
+	while (inboundTraffic.find(allocatedPort) != inboundTraffic.end()) {
+		allocatedPort++;
+
+		if (allocatedPort > PORT_END) {
+			allocatedPort = PORT_START;
+		}
+
+		if (allocatedPort == nextAvailablePort) {
+			// Cycle complete -> no port available
+			return nullptr;
+		}
+	}
+
+	auto result = outboundTraffic.emplace(key, NatEntry{publicIp, allocatedPort, privateIp, privatePort});
 
 	if (!result.second) {
 		return &(result.first->second);
 	}
 
 	inboundTraffic.emplace(allocatedPort, key);
-	nextAvailablePort++;
+	nextAvailablePort = allocatedPort + 1;
 
 	return &(result.first->second);
 }
