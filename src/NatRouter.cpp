@@ -4,10 +4,10 @@
 
 NatRouter::NatRouter(NatTable &table) : table(table) {}
 
-void NatRouter::handleOutbound(Packet &packet) {
+void NatRouter::handleOutbound(Packet &packet) const {
 	table.removeExpired();
 
-	NatEntry *entry = table.findByPrivate(packet.getSourceIp(), packet.getSourcePort());
+	const NatEntry *entry = table.findByPrivate(packet.getSourceIp(), packet.getSourcePort());
 
 	if (entry == nullptr) {
 		entry = table.createMapping(packet.getSourceIp(), packet.getSourcePort());
@@ -32,10 +32,10 @@ void NatRouter::handleOutbound(Packet &packet) {
 }
 
 
-void NatRouter::handleInbound(Packet &packet) {
+void NatRouter::handleInbound(Packet &packet) const {
 	table.removeExpired();
 
-	NatEntry *entry = table.findByPublicPort(packet.getDestinationPort());
+	const NatEntry *const entry = table.findByPublicPort(packet.getDestinationPort());
 	if (entry == nullptr) {
 		std::cout << "[DROP: NO_MAPPING] ";
 		packet.print();

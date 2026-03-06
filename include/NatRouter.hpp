@@ -8,6 +8,6 @@ private:
 
 public:
 	explicit NatRouter(NatTable &table);
-	void handleOutbound(Packet &packet);
-	void handleInbound(Packet &packet);
+	void handleOutbound(Packet &packet) const;
+	void handleInbound(Packet &packet) const;
 };

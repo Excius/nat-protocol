@@ -14,17 +14,17 @@ PHASE 1 – CORE HARDENING
     - Reject new mappings when table is full
     - Log: [DROP: TABLE FULL]
 
-- [ ] Implement proper port exhaustion handling
+- [x] Implement proper port exhaustion handling
     - Handle nextAvailablePort > 65535
     - Wrap around to starting port
     - Ensure port is not already in use
     - Log: [ERROR: PORT EXHAUSTED]
 
-- [ ] Prevent port collision
+- [x] Prevent port collision
     - Before assigning publicPort
     - Check inboundTraffic to ensure port is free
 
-- [ ] Make timeout configurable
+- [x] Make timeout configurable
     - Add timeoutDuration as member
     - Pass via constructor
     - Remove hardcoded 60 seconds

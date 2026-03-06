@@ -6,10 +6,11 @@
 constexpr uint16_t PORT_START = 40001;
 constexpr uint16_t PORT_END = 65535;
 
-NatTable::NatTable(const std::string &publicIp) : publicIp(publicIp), nextAvailablePort(PORT_START) {}
+NatTable::NatTable(const std::string &publicIp, const std::chrono::seconds timeout) :
+		publicIp(publicIp), nextAvailablePort(PORT_START), timeoutDuration{timeout} {}
 
-NatEntry *NatTable::findByPrivate(const std::string &privateIp, uint16_t privatePort) {
-	PrivateKey key{privateIp, privatePort};
+NatEntry *NatTable::findByPrivate(const std::string &privateIp, const uint16_t privatePort) {
+	const PrivateKey key{privateIp, privatePort};
 
 	auto it = outboundTraffic.find(key);
 	if (it == outboundTraffic.end()) {
@@ -19,7 +20,7 @@ NatEntry *NatTable::findByPrivate(const std::string &privateIp, uint16_t private
 	return &(it->second);
 }
 
-NatEntry *NatTable::findByPublicPort(uint16_t publicPort) {
+NatEntry *NatTable::findByPublicPort(const uint16_t publicPort) {
 
 	auto itInbound = inboundTraffic.find(publicPort);
 	if (itInbound == inboundTraffic.end())
@@ -41,32 +42,45 @@ NatEntry *NatTable::createMapping(const std::string &privateIp, uint16_t private
 		return natEntry;
 	}
 
-	uint16_t allocatedPort = nextAvailablePort;
-
-	if (allocatedPort > PORT_END) {
-		// port pool exhausted
-		return nullptr;
-	}
-	if (outboundTraffic.size() >= PORT_END - PORT_START + 1) {
+	if (outboundTraffic.size() >= (PORT_END - PORT_START + 1)) {
 		// Table size overflow
 		return nullptr;
 	}
 
-	NatEntry entry(publicIp, allocatedPort, privateIp, privatePort);
-	auto result = outboundTraffic.emplace(key, entry);
+	if (nextAvailablePort > PORT_END) {
+		// port pool exhausted
+		nextAvailablePort = PORT_START;
+	}
+
+	uint16_t allocatedPort = nextAvailablePort;
+
+	while (inboundTraffic.find(allocatedPort) != inboundTraffic.end()) {
+		allocatedPort++;
+
+		if (allocatedPort > PORT_END) {
+			allocatedPort = PORT_START;
+		}
+
+		if (allocatedPort == nextAvailablePort) {
+			// Cycle complete -> no port available
+			return nullptr;
+		}
+	}
+
+	auto result = outboundTraffic.emplace(key, NatEntry{publicIp, allocatedPort, privateIp, privatePort});
 
 	if (!result.second) {
 		return &(result.first->second);
 	}
 
 	inboundTraffic.emplace(allocatedPort, key);
-	nextAvailablePort++;
+	nextAvailablePort = allocatedPort + 1;
 
 	return &(result.first->second);
 }
 
 void NatTable::removeExpired() {
-	constexpr std::chrono::seconds TIMEOUT(60);
+	const std::chrono::seconds TIMEOUT{timeoutDuration};
 	const auto now = std::chrono::steady_clock::now();
 
 	for (auto it = outboundTraffic.begin(); it != outboundTraffic.end();) {
