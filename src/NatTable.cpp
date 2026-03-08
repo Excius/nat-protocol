@@ -47,23 +47,37 @@ NatEntry *NatTable::createMapping(const std::string &privateIp, uint16_t private
 		return nullptr;
 	}
 
-	if (nextAvailablePort > PORT_END) {
-		// port pool exhausted
-		nextAvailablePort = PORT_START;
-	}
+	uint16_t allocatedPort;
+	if (!freePortPool.empty()) {
+		allocatedPort = freePortPool.front();
+		freePortPool.pop();
 
-	uint16_t allocatedPort = nextAvailablePort;
+	} else {
 
-	while (inboundTraffic.find(allocatedPort) != inboundTraffic.end()) {
-		allocatedPort++;
-
-		if (allocatedPort > PORT_END) {
-			allocatedPort = PORT_START;
+		if (nextAvailablePort > PORT_END) {
+			// port pool exhausted
+			nextAvailablePort = PORT_START;
 		}
 
-		if (allocatedPort == nextAvailablePort) {
-			// Cycle complete -> no port available
-			return nullptr;
+		allocatedPort = nextAvailablePort;
+
+		while (inboundTraffic.find(allocatedPort) != inboundTraffic.end()) {
+			allocatedPort++;
+
+			if (allocatedPort > PORT_END) {
+				allocatedPort = PORT_START;
+			}
+
+			if (allocatedPort == nextAvailablePort) {
+				// Cycle complete -> no port available
+				return nullptr;
+			}
+		}
+
+		// Handling the next available port
+		nextAvailablePort = allocatedPort + 1;
+		if (nextAvailablePort > PORT_END) {
+			nextAvailablePort = PORT_START;
 		}
 	}
 
@@ -74,7 +88,6 @@ NatEntry *NatTable::createMapping(const std::string &privateIp, uint16_t private
 	}
 
 	inboundTraffic.emplace(allocatedPort, key);
-	nextAvailablePort = allocatedPort + 1;
 
 	return &(result.first->second);
 }
@@ -93,6 +106,8 @@ void NatTable::removeExpired() {
 
 			inboundTraffic.erase(publicPort);
 			it = outboundTraffic.erase(it);
+
+			freePortPool.push(publicPort);
 		} else {
 			++it;
 		}

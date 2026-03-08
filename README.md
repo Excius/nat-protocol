@@ -29,24 +29,22 @@ PHASE 1 – CORE HARDENING
     - Pass via constructor
     - Remove hardcoded 60 seconds
 
-- [ ] Optimize removeExpired()
+- [x] Optimize removeExpired()
     - Store now = steady_clock::now() once per call
 
-- [ ] Improve printTable()
+- [x] Improve printTable()
     - Print (empty) if no entries
     - Ensure clean formatting
 
 PHASE 2 – SECURITY IMPROVEMENTS
 --------------------------------
 
-- [ ] Add NAT table overflow attack simulation
-
-    - Generate thousands of outbound packets
-    - Observe table growth
-    - Show drop behavior
+- [ ] ~~Add NAT table overflow attack simulation~~
+    - ~~Generate thousands of outbound packets~~
+    - ~~Observe table growth~~
+    - ~~Show drop behavior~~
 
 - [ ] Add statistics tracking
-
     - totalMappingsCreated
     - totalMappingsExpired
     - totalInboundPackets
@@ -54,10 +52,9 @@ PHASE 2 – SECURITY IMPROVEMENTS
     - totalDroppedInbound
     - totalDroppedTableFull
 
-- [ ] Print statistics at program end
+- [ ] ~~Print statistics at program end~~
 
-- [ ] Implement port reuse pool
-
+- [x] Implement port reuse pool
     - Maintain queue of freed ports
     - Reuse expired ports before allocating new ones
 
