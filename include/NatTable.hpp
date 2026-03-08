@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <map>
+#include <queue>
 #include <string>
 #include "NatEntry.hpp"
 
@@ -25,6 +26,8 @@ private:
 
 	std::map<PrivateKey, NatEntry> outboundTraffic;
 	std::map<uint16_t, PrivateKey> inboundTraffic;
+
+	std::queue<uint16_t> freePortPool;
 
 public:
 	explicit NatTable(const std::string &publicIp, std::chrono::seconds timeout = std::chrono::seconds(60));
