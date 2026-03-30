@@ -1,4 +1,5 @@
 #include "NatTable.hpp"
+#include "Logger.hpp"
 
 #include <iostream>
 #include <ostream>
@@ -6,10 +7,43 @@
 constexpr uint16_t PORT_START = 40001;
 constexpr uint16_t PORT_END = 65535;
 
-NatTable::NatTable(const std::string &publicIp, const std::chrono::seconds timeout) :
-		publicIp(publicIp), nextAvailablePort(PORT_START), timeoutDuration{timeout} {}
+NatTable::NatTable(const std::string &publicIp, const std::chrono::seconds timeout, const bool enableBackgroundCleanup,
+                   const std::chrono::seconds cleanupInterval) :
+		publicIp(publicIp), nextAvailablePort(PORT_START), timeoutDuration{timeout}, cleanupInterval(cleanupInterval) {
+	if (enableBackgroundCleanup) {
+		startBackgroundCleanup(cleanupInterval);
+	}
+}
+
+NatTable::~NatTable() { stopBackgroundCleanup(); }
+
+void NatTable::startBackgroundCleanup(std::chrono::seconds interval) {
+	std::lock_guard<std::mutex> lock(mtx);
+	if (cleanupThread.joinable()) {
+		return;
+	}
+
+	cleanupInterval = interval;
+	stopCleanup.store(false, std::memory_order_release);
+	cleanupThread = std::thread(&NatTable::cleanupLoop, this);
+}
+
+void NatTable::stopBackgroundCleanup() {
+	stopCleanup.store(true, std::memory_order_release);
+	if (cleanupThread.joinable()) {
+		cleanupThread.join();
+	}
+}
+
+void NatTable::cleanupLoop() {
+	while (!stopCleanup.load(std::memory_order_acquire)) {
+		std::this_thread::sleep_for(cleanupInterval);
+		removeExpired();
+	}
+}
 
 NatEntry *NatTable::findByPrivate(const std::string &privateIp, const uint16_t privatePort) {
+	std::lock_guard<std::mutex> lock(mtx);
 	const PrivateKey key{privateIp, privatePort};
 
 	auto it = outboundTraffic.find(key);
@@ -21,6 +55,7 @@ NatEntry *NatTable::findByPrivate(const std::string &privateIp, const uint16_t p
 }
 
 NatEntry *NatTable::findByPublicPort(const uint16_t publicPort) {
+	std::lock_guard<std::mutex> lock(mtx);
 
 	auto itInbound = inboundTraffic.find(publicPort);
 	if (itInbound == inboundTraffic.end())
@@ -35,6 +70,7 @@ NatEntry *NatTable::findByPublicPort(const uint16_t publicPort) {
 }
 
 NatEntry *NatTable::createMapping(const std::string &privateIp, uint16_t privatePort) {
+	std::lock_guard<std::mutex> lock(mtx);
 	PrivateKey key{privateIp, privatePort};
 
 	NatEntry *natEntry = findByPrivate(privateIp, privatePort);
@@ -93,6 +129,8 @@ NatEntry *NatTable::createMapping(const std::string &privateIp, uint16_t private
 }
 
 void NatTable::removeExpired() {
+	std::lock_guard<std::mutex> lock(mtx);
+
 	const std::chrono::seconds TIMEOUT{timeoutDuration};
 	const auto now = std::chrono::steady_clock::now();
 
@@ -100,9 +138,7 @@ void NatTable::removeExpired() {
 		if (now - it->second.getLastUsed() > TIMEOUT) {
 			uint16_t publicPort = it->second.getPublicPort();
 
-			std::cout << "[EXPIRE] ";
-			it->second.print();
-			std::cout << std::endl;
+			net::log::entry(net::log::Level::EXPIRE, it->second);
 
 			inboundTraffic.erase(publicPort);
 			it = outboundTraffic.erase(it);
@@ -115,6 +151,8 @@ void NatTable::removeExpired() {
 }
 
 void NatTable::printTable() const {
+	std::lock_guard<std::mutex> lock(mtx);
+
 	std::cout << "-------------- NAT TABLE --------------" << std::endl;
 
 	if (outboundTraffic.empty()) {

@@ -1,8 +1,11 @@
 #pragma once
+#include <atomic>
 #include <cstdint>
 #include <map>
+#include <mutex>
 #include <queue>
 #include <string>
+#include <thread>
 #include "NatEntry.hpp"
 
 struct PrivateKey {
@@ -29,8 +32,23 @@ private:
 
 	std::queue<uint16_t> freePortPool;
 
+	// Background cleanup thread
+	mutable std::mutex mtx;
+	std::atomic<bool> stopCleanup{false};
+	std::thread cleanupThread;
+	std::chrono::seconds cleanupInterval;
+
+	void cleanupLoop();
+
 public:
-	explicit NatTable(const std::string &publicIp, std::chrono::seconds timeout = std::chrono::seconds(60));
+	explicit NatTable(const std::string &publicIp, std::chrono::seconds timeout = std::chrono::seconds(60),
+	                  bool enableBackgroundCleanup = false,
+	                  std::chrono::seconds cleanupInterval = std::chrono::seconds(5));
+	~NatTable();
+
+	// Background cleanup control
+	void startBackgroundCleanup(std::chrono::seconds interval = std::chrono::seconds(5));
+	void stopBackgroundCleanup();
 
 	NatEntry *findByPrivate(const std::string &privateIp, uint16_t privatePort);
 	NatEntry *findByPublicPort(uint16_t publicPort);

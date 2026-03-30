@@ -16,14 +16,12 @@ uint16_t Packet::getDestinationPort() const { return destinationPort; }
 const Protocol &Packet::getProtocol() const { return protocol; }
 
 void Packet::setSourceIp(const std::string &srcIp) { sourceIp = srcIp; }
-
 void Packet::setSourcePort(uint16_t srcPort) { sourcePort = srcPort; }
-
 void Packet::setDestinationIp(const std::string &destIp) { destinationIp = destIp; }
-
 void Packet::setDestinationPort(uint16_t destPort) { destinationPort = destPort; }
 
 void Packet::print() const {
 	std::cout << (protocol == Protocol::TCP ? "TCP" : "UDP") << " " << sourceIp << ":" << sourcePort << " -> "
-						<< destinationIp << ":" << destinationPort << std::endl;
+			<< destinationIp << ":" << destinationPort << std::endl;
 }
+
