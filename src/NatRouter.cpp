@@ -1,10 +1,16 @@
 #include "NatRouter.hpp"
-
-#include <iostream>
+#include "IpUtils.hpp"
+#include "Logger.hpp"
 
 NatRouter::NatRouter(NatTable &table) : table(table) {}
 
 void NatRouter::handleOutbound(Packet &packet) const {
+	if (!net::isPrivateIPv4(packet.getSourceIp())) {
+		net::log::message(net::log::Level::DROP, "INVALID_PRIVATE_IP");
+		net::log::packet(net::log::Level::DROP, packet);
+		return;
+	}
+
 	table.removeExpired();
 
 	const NatEntry *entry = table.findByPrivate(packet.getSourceIp(), packet.getSourcePort());
@@ -12,23 +18,18 @@ void NatRouter::handleOutbound(Packet &packet) const {
 	if (entry == nullptr) {
 		entry = table.createMapping(packet.getSourceIp(), packet.getSourcePort());
 		if (entry == nullptr) {
-			std::cout << "[DROP: TABLE_FULL] ";
-			packet.print();
-			std::cout << std::endl;
+			net::log::message(net::log::Level::DROP, "TABLE_FULL");
+			net::log::packet(net::log::Level::DROP, packet);
 			return;
 		}
 
-		std::cout << "[MAP] ";
-		entry->print();
-		std::cout << std::endl;
+		net::log::entry(net::log::Level::MAP, *entry);
 	}
 
 	packet.setSourceIp(entry->getPublicIp());
 	packet.setSourcePort(entry->getPublicPort());
 
-	std::cout << "[OUT] ";
-	packet.print();
-	std::cout << std::endl;
+	net::log::packet(net::log::Level::OUT, packet);
 }
 
 
@@ -37,16 +38,13 @@ void NatRouter::handleInbound(Packet &packet) const {
 
 	const NatEntry *const entry = table.findByPublicPort(packet.getDestinationPort());
 	if (entry == nullptr) {
-		std::cout << "[DROP: NO_MAPPING] ";
-		packet.print();
-		std::cout << std::endl;
+		net::log::message(net::log::Level::DROP, "NO_MAPPING");
+		net::log::packet(net::log::Level::DROP, packet);
 		return;
 	}
 
 	packet.setDestinationIp(entry->getPrivateIp());
 	packet.setDestinationPort(entry->getPrivatePort());
 
-	std::cout << "[IN] ";
-	packet.print();
-	std::cout << std::endl;
+	net::log::packet(net::log::Level::IN, packet);
 }
