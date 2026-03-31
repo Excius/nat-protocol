@@ -73,9 +73,10 @@ NatEntry *NatTable::createMapping(const std::string &privateIp, uint16_t private
 	std::lock_guard<std::mutex> lock(mtx);
 	PrivateKey key{privateIp, privatePort};
 
-	NatEntry *natEntry = findByPrivate(privateIp, privatePort);
-	if (natEntry != nullptr) {
-		return natEntry;
+	auto existing = outboundTraffic.find(key);
+	if (existing != outboundTraffic.end()) {
+		existing->second.updateTimestamp();
+		return &(existing->second);
 	}
 
 	if (outboundTraffic.size() >= (PORT_END - PORT_START + 1)) {
